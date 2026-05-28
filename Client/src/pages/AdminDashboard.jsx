@@ -1,8 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
-// ================= CATEGORIES =================
-
 const CATEGORIES = [
   { id: 1,  name: "North Indian", emoji: "🍛" },
   { id: 2,  name: "South Indian", emoji: "🥘" },
@@ -28,31 +26,31 @@ const CATEGORIES = [
 
 const API_BASE = "https://swiggy-full-stack.onrender.com";
 
+const EMPTY_FORM = { name: "", price: "", description: "", image: "", isVeg: true };
+
 export default function AdminDashboard() {
   const navigate = useNavigate();
 
   const admin      = JSON.parse(localStorage.getItem("admin") || "null");
   const adminToken = localStorage.getItem("adminToken");
 
-  // tabs
   const [activeTab, setActiveTab] = useState("food");
+  const [stats,     setStats]     = useState(null);
+  const [users,     setUsers]     = useState([]);
+  const [loading,   setLoading]   = useState(true);
+  const [error,     setError]     = useState("");
 
-  // overview
-  const [stats,   setStats]   = useState(null);
-  const [users,   setUsers]   = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error,   setError]   = useState("");
-
-  // food tab
-  const [selectedCategory, setSelectedCategory] = useState(null);   // null = no panel open
+  // food panel
+  const [selectedCategory, setSelectedCategory] = useState(null);
   const [categoryFoods,    setCategoryFoods]    = useState([]);
   const [foodLoading,      setFoodLoading]      = useState(false);
   const [submitting,       setSubmitting]       = useState(false);
   const [formError,        setFormError]        = useState("");
   const [formSuccess,      setFormSuccess]      = useState("");
-  const [formData, setFormData] = useState({
-    name: "", price: "", description: "", image: "", isVeg: true,
-  });
+  const [formData,         setFormData]         = useState(EMPTY_FORM);
+
+  // edit mode
+  const [editingFood, setEditingFood] = useState(null); // null = add mode, food obj = edit mode
 
   // ── auth guard ──
   useEffect(() => { if (!adminToken) navigate("/admin"); }, [adminToken, navigate]);
@@ -66,10 +64,8 @@ export default function AdminDashboard() {
           fetch(`${API_BASE}/api/admin/dashboard`, { headers: { Authorization: `Bearer ${adminToken}` } }),
           fetch(`${API_BASE}/api/admin/users`,     { headers: { Authorization: `Bearer ${adminToken}` } }),
         ]);
-        const dD = await dR.json();
-        const uD = await uR.json();
-        if (dR.ok) setStats(dD.stats);
-        if (uR.ok) setUsers(uD.users || []);
+        if (dR.ok) setStats((await dR.json()).stats);
+        if (uR.ok) setUsers((await uR.json()).users || []);
       } catch { setError("Server connect nathi thayu."); }
       finally  { setLoading(false); }
     })();
@@ -92,12 +88,36 @@ export default function AdminDashboard() {
 
   // ── open panel ──
   const openPanel = (cat) => {
-    setFormError(""); setFormSuccess("");
-    setFormData({ name: "", price: "", description: "", image: "", isVeg: true });
+    resetForm();
     setSelectedCategory(cat);
   };
+  const closePanel = () => { setSelectedCategory(null); resetForm(); };
 
-  const closePanel = () => setSelectedCategory(null);
+  // ── reset form ──
+  const resetForm = () => {
+    setEditingFood(null);
+    setFormData(EMPTY_FORM);
+    setFormError("");
+    setFormSuccess("");
+  };
+
+  // ── start editing ──
+  const startEdit = (food) => {
+    setEditingFood(food);
+    setFormData({
+      name:        food.name,
+      price:       food.price,
+      description: food.description || "",
+      image:       food.image       || "",
+      isVeg:       food.isVeg,
+    });
+    setFormError("");
+    setFormSuccess("");
+    // scroll form into view
+    document.getElementById("food-form")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
+  const cancelEdit = () => resetForm();
 
   // ── add food ──
   const handleAddFood = async (e) => {
@@ -114,9 +134,35 @@ export default function AdminDashboard() {
       const data = await res.json();
       if (res.ok) {
         setFormSuccess(`✅ ${formData.name} added!`);
-        setFormData({ name: "", price: "", description: "", image: "", isVeg: true });
+        setFormData(EMPTY_FORM);
         fetchFoodsByCategory(selectedCategory);
       } else { setFormError(data.message || "Failed to add food"); }
+    } catch { setFormError("Server Error"); }
+    finally  { setSubmitting(false); }
+  };
+
+  // ── update food ──
+  const handleUpdateFood = async (e) => {
+    e.preventDefault();
+    setFormError(""); setFormSuccess("");
+    if (!formData.name || !formData.price) { setFormError("Name and price required."); return; }
+    setSubmitting(true);
+    try {
+      const res  = await fetch(`${API_BASE}/api/food/${editingFood._id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${adminToken}` },
+        body: JSON.stringify({
+          ...formData,
+          category: selectedCategory.name,
+          price: Number(formData.price),
+        }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setFormSuccess(`✅ ${formData.name} updated!`);
+        resetForm();
+        fetchFoodsByCategory(selectedCategory);
+      } else { setFormError(data.message || "Failed to update food"); }
     } catch { setFormError("Server Error"); }
     finally  { setSubmitting(false); }
   };
@@ -124,6 +170,8 @@ export default function AdminDashboard() {
   // ── delete food ──
   const handleDeleteFood = async (foodId, foodName) => {
     if (!confirm(`"${foodName}" delete karvu che?`)) return;
+    // if deleting the food being edited, reset form
+    if (editingFood?._id === foodId) resetForm();
     try {
       const res = await fetch(`${API_BASE}/api/food/${foodId}`, {
         method: "DELETE", headers: { Authorization: `Bearer ${adminToken}` },
@@ -152,7 +200,8 @@ export default function AdminDashboard() {
 
   if (!adminToken) return null;
 
-  // ─────────────────────────────────────────────────────────────
+  const isEditMode = !!editingFood;
+
   return (
     <div className="min-h-screen bg-gray-50">
 
@@ -171,7 +220,7 @@ export default function AdminDashboard() {
             <div className="flex bg-gray-100 rounded-xl p-1">
               {["overview","food","users"].map((tab) => (
                 <button key={tab} onClick={() => setActiveTab(tab)}
-                  className={`px-3 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-all capitalize ${
+                  className={`px-3 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-all ${
                     activeTab === tab ? "bg-white text-orange-500 shadow" : "text-gray-500"
                   }`}>
                   {tab === "overview" ? "📊 Overview" : tab === "food" ? "🍽️ Food" : "👥 Users"}
@@ -189,7 +238,7 @@ export default function AdminDashboard() {
         </div>
       </nav>
 
-      {/* ── OVERVIEW TAB ── */}
+      {/* ── OVERVIEW ── */}
       {activeTab === "overview" && (
         <div className="max-w-5xl mx-auto px-4 py-8">
           <h1 className="text-2xl font-extrabold text-gray-900 mb-6">Dashboard Overview</h1>
@@ -199,9 +248,9 @@ export default function AdminDashboard() {
           ) : (
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-8">
               {[
-                { icon: "👥", val: stats?.totalUsers  ?? 0, label: "Total Users",    bg: "bg-blue-100"   },
-                { icon: "🛡️", val: stats?.totalAdmins ?? 0, label: "Total Admins",   bg: "bg-orange-100" },
-                { icon: "🍽️", val: CATEGORIES.length,       label: "Categories",     bg: "bg-green-100"  },
+                { icon:"👥", val: stats?.totalUsers  ?? 0, label:"Total Users",  bg:"bg-blue-100"   },
+                { icon:"🛡️", val: stats?.totalAdmins ?? 0, label:"Total Admins", bg:"bg-orange-100" },
+                { icon:"🍽️", val: CATEGORIES.length,       label:"Categories",   bg:"bg-green-100"  },
               ].map((s) => (
                 <div key={s.label} className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
                   <div className={`w-10 h-10 ${s.bg} rounded-xl flex items-center justify-center mb-3`}>
@@ -244,41 +293,36 @@ export default function AdminDashboard() {
       {/* ── FOOD TAB ── */}
       {activeTab === "food" && (
         <div className="max-w-7xl mx-auto px-4 py-8">
-          <h1 className="text-2xl font-extrabold text-gray-900 mb-2">Food Management</h1>
-          <p className="text-sm text-gray-400 mb-6">Category ઉપર click કરો — add form ખૂલશે</p>
+          <h1 className="text-2xl font-extrabold text-gray-900 mb-1">Food Management</h1>
+          <p className="text-sm text-gray-400 mb-6">Category card ઉપર click કરો</p>
 
-          {/* ── Two-column layout ── */}
           <div className="flex gap-6 items-start">
 
-            {/* LEFT: Category grid */}
+            {/* LEFT: Category Grid */}
             <div className={`transition-all duration-300 ${selectedCategory ? "w-1/2" : "w-full"}`}>
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
                 {CATEGORIES.map((cat) => {
                   const isSelected = selectedCategory?.id === cat.id;
                   return (
-                    <button
-                      key={cat.id}
+                    <button key={cat.id}
                       onClick={() => isSelected ? closePanel() : openPanel(cat)}
-                      className={`relative flex flex-col items-center justify-center gap-2 py-5 px-3 rounded-2xl border-2 transition-all duration-200 group
+                      className={`relative flex flex-col items-center justify-center gap-2 py-5 px-3 rounded-2xl border-2 transition-all duration-200
                         ${isSelected
                           ? "border-orange-400 bg-orange-50 shadow-md scale-[1.02]"
                           : "border-gray-100 bg-white hover:border-orange-200 hover:bg-orange-50/50 hover:shadow-sm"
-                        }`}
-                    >
+                        }`}>
                       <span className="text-3xl">{cat.emoji}</span>
                       <span className={`text-xs font-semibold text-center leading-tight ${isSelected ? "text-orange-600" : "text-gray-700"}`}>
                         {cat.name}
                       </span>
-                      {isSelected && (
-                        <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-orange-400"></span>
-                      )}
+                      {isSelected && <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-orange-400"/>}
                     </button>
                   );
                 })}
               </div>
             </div>
 
-            {/* RIGHT: Slide-in Panel */}
+            {/* RIGHT: Panel */}
             {selectedCategory && (
               <div className="w-1/2 flex-shrink-0">
                 <div className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
@@ -300,14 +344,26 @@ export default function AdminDashboard() {
                     </button>
                   </div>
 
-                  {/* Add Form */}
-                  <div className="p-5 border-b border-gray-100">
-                    <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">New Item Add Karo</p>
+                  {/* ── FORM (Add / Edit) ── */}
+                  <div id="food-form" className="p-5 border-b border-gray-100">
+
+                    {/* Form title bar */}
+                    <div className="flex items-center justify-between mb-3">
+                      <p className={`text-xs font-bold uppercase tracking-wider ${isEditMode ? "text-blue-500" : "text-gray-500"}`}>
+                        {isEditMode ? `✏️ Edit: ${editingFood.name}` : "New Item Add Karo"}
+                      </p>
+                      {isEditMode && (
+                        <button onClick={cancelEdit}
+                          className="text-xs text-gray-400 hover:text-red-500 font-semibold transition-colors">
+                          Cancel
+                        </button>
+                      )}
+                    </div>
 
                     {formError   && <div className="bg-red-50 border border-red-200 text-red-600 text-xs rounded-xl px-3 py-2 mb-3">{formError}</div>}
                     {formSuccess && <div className="bg-green-50 border border-green-200 text-green-600 text-xs rounded-xl px-3 py-2 mb-3">{formSuccess}</div>}
 
-                    <form onSubmit={handleAddFood} className="space-y-3">
+                    <form onSubmit={isEditMode ? handleUpdateFood : handleAddFood} className="space-y-3">
                       <div className="flex gap-2">
                         <div className="flex-1">
                           <label className="block text-xs font-semibold text-gray-500 mb-1">Food Name *</label>
@@ -362,47 +418,89 @@ export default function AdminDashboard() {
                       )}
 
                       <button type="submit" disabled={submitting}
-                        className="w-full bg-orange-500 hover:bg-orange-600 disabled:opacity-60 text-white font-bold py-2.5 rounded-xl text-sm transition-all">
-                        {submitting ? "Adding..." : `+ Add to ${selectedCategory.name}`}
+                        className={`w-full disabled:opacity-60 text-white font-bold py-2.5 rounded-xl text-sm transition-all ${
+                          isEditMode
+                            ? "bg-blue-500 hover:bg-blue-600"
+                            : "bg-orange-500 hover:bg-orange-600"
+                        }`}>
+                        {submitting
+                          ? (isEditMode ? "Updating..." : "Adding...")
+                          : (isEditMode ? `💾 Update ${editingFood.name}` : `+ Add to ${selectedCategory.name}`)
+                        }
                       </button>
                     </form>
                   </div>
 
-                  {/* Food List in this category */}
+                  {/* ── Food List ── */}
                   <div className="max-h-72 overflow-y-auto">
                     {foodLoading ? (
                       <div className="text-center py-8 text-gray-400 text-sm">Loading...</div>
                     ) : categoryFoods.length === 0 ? (
                       <div className="text-center py-8 text-gray-400 text-sm">
-                        <div className="text-3xl mb-2">🍽️</div>
-                        No items yet
+                        <div className="text-3xl mb-2">🍽️</div>No items yet
                       </div>
                     ) : (
                       <div className="divide-y divide-gray-50">
-                        {categoryFoods.map((food) => (
-                          <div key={food._id} className="flex items-center gap-3 px-5 py-3 hover:bg-gray-50 transition-all">
-                            <div className="w-10 h-10 rounded-xl overflow-hidden bg-gray-100 flex-shrink-0">
-                              {food.image
-                                ? <img src={food.image} alt={food.name} className="w-full h-full object-cover"/>
-                                : <div className="w-full h-full flex items-center justify-center text-xl">🍽️</div>
-                              }
+                        {categoryFoods.map((food) => {
+                          const isBeingEdited = editingFood?._id === food._id;
+                          return (
+                            <div key={food._id}
+                              className={`flex items-center gap-3 px-5 py-3 transition-all ${
+                                isBeingEdited ? "bg-blue-50" : "hover:bg-gray-50"
+                              }`}>
+                              {/* Image */}
+                              <div className="w-10 h-10 rounded-xl overflow-hidden bg-gray-100 flex-shrink-0">
+                                {food.image
+                                  ? <img src={food.image} alt={food.name} className="w-full h-full object-cover"/>
+                                  : <div className="w-full h-full flex items-center justify-center text-xl">🍽️</div>
+                                }
+                              </div>
+                              {/* Info */}
+                              <div className="flex-1 min-w-0">
+                                <p className={`text-sm font-bold truncate ${isBeingEdited ? "text-blue-700" : "text-gray-800"}`}>
+                                  {food.name}
+                                  {isBeingEdited && <span className="ml-1 text-xs font-normal text-blue-400">editing...</span>}
+                                </p>
+                                <p className="text-xs font-bold text-orange-500">
+                                  ₹{food.price}
+                                  <span className={`ml-2 font-semibold ${food.isVeg ? "text-green-500" : "text-red-500"}`}>
+                                    {food.isVeg ? "● Veg" : "● Non-Veg"}
+                                  </span>
+                                </p>
+                              </div>
+                              {/* Edit + Delete buttons */}
+                              <div className="flex items-center gap-1 flex-shrink-0">
+                                {/* Edit */}
+                                <button
+                                  onClick={() => isBeingEdited ? cancelEdit() : startEdit(food)}
+                                  title={isBeingEdited ? "Cancel Edit" : "Edit"}
+                                  className={`w-7 h-7 flex items-center justify-center rounded-lg border transition-all ${
+                                    isBeingEdited
+                                      ? "border-blue-300 bg-blue-100 text-blue-500"
+                                      : "border-blue-200 text-blue-400 hover:bg-blue-50"
+                                  }`}>
+                                  {isBeingEdited ? (
+                                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/>
+                                    </svg>
+                                  ) : (
+                                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                                    </svg>
+                                  )}
+                                </button>
+                                {/* Delete */}
+                                <button onClick={() => handleDeleteFood(food._id, food.name)}
+                                  title="Delete"
+                                  className="w-7 h-7 flex items-center justify-center rounded-lg border border-red-200 text-red-400 hover:bg-red-50 transition-all">
+                                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                                  </svg>
+                                </button>
+                              </div>
                             </div>
-                            <div className="flex-1 min-w-0">
-                              <p className="text-sm font-bold text-gray-800 truncate">{food.name}</p>
-                              <p className="text-xs font-bold text-orange-500">₹{food.price}
-                                <span className={`ml-2 font-semibold ${food.isVeg ? "text-green-500" : "text-red-500"}`}>
-                                  {food.isVeg ? "● Veg" : "● Non-Veg"}
-                                </span>
-                              </p>
-                            </div>
-                            <button onClick={() => handleDeleteFood(food._id, food.name)}
-                              className="w-7 h-7 flex items-center justify-center rounded-lg border border-red-200 text-red-400 hover:bg-red-50 transition-all flex-shrink-0">
-                              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
-                              </svg>
-                            </button>
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     )}
                   </div>
@@ -433,13 +531,10 @@ export default function AdminDashboard() {
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-bold text-gray-800">{u.name}</p>
                       <p className="text-xs text-gray-400 truncate">{u.email}</p>
-                      {u.phone && <p className="text-xs text-gray-400">{u.phone}</p>}
                     </div>
-                    <div className="text-right flex-shrink-0">
-                      <p className="text-xs text-gray-400">
-                        {new Date(u.createdAt).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}
-                      </p>
-                    </div>
+                    <p className="text-xs text-gray-400 flex-shrink-0">
+                      {new Date(u.createdAt).toLocaleDateString("en-IN", { day:"2-digit", month:"short", year:"numeric" })}
+                    </p>
                     <button onClick={() => handleDeleteUser(u._id)}
                       className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-xl border border-red-200 text-red-500 hover:bg-red-50 transition-all">
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">

@@ -10,7 +10,6 @@ const addFood = async (req, res) => {
     }
 
     const food = await Food.create({ name, category, price, description, image, isVeg });
-
     res.status(201).json({ message: "Food added successfully", food });
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -38,6 +37,32 @@ const getFoodsByCategory = async (req, res) => {
   }
 };
 
+// ================= UPDATE FOOD =================
+const updateFood = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, category, price, description, image, isVeg } = req.body;
+
+    if (!name || !price) {
+      return res.status(400).json({ message: "Name and price are required" });
+    }
+
+    const food = await Food.findByIdAndUpdate(
+      id,
+      { name, category, price, description, image, isVeg },
+      { new: true }
+    );
+
+    if (!food) {
+      return res.status(404).json({ message: "Food not found" });
+    }
+
+    res.status(200).json({ message: "Food updated successfully", food });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
 // ================= DELETE FOOD =================
 const deleteFood = async (req, res) => {
   try {
@@ -49,4 +74,4 @@ const deleteFood = async (req, res) => {
   }
 };
 
-module.exports = { addFood, getAllFoods, getFoodsByCategory, deleteFood };
+module.exports = { addFood, getAllFoods, getFoodsByCategory, updateFood, deleteFood };
