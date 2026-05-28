@@ -258,15 +258,18 @@ export default function CategoryPage() {
   // ================= ADD TO CART =================
 
   const handleAddToCart = () => {
+    const success = addToCart(selectedFood, qty);
 
-    addToCart(selectedFood, qty);
+    if (!success) {
+      // Not logged in — close modal and redirect to login
+      closeModal();
+      navigate("/login");
+      return;
+    }
 
     setAddedToCart(true);
-
     setTimeout(() => {
-
       closeModal();
-
     }, 1200);
   };
 

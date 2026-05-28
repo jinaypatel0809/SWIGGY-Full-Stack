@@ -1,4 +1,4 @@
-// Cart utility — localStorage based shared cart
+// Cart utility — localStorage based
 
 export const getCart = () => {
   try {
@@ -13,7 +13,11 @@ export const saveCart = (items) => {
   window.dispatchEvent(new Event("cartUpdated"));
 };
 
+// ✅ Returns true if added, false if not logged in
 export const addToCart = (food, qty = 1) => {
+  const token = localStorage.getItem("token");
+  if (!token) return false;  // not logged in
+
   const cart = getCart();
   const existing = cart.find((i) => i._id === food._id);
   if (existing) {
@@ -22,6 +26,7 @@ export const addToCart = (food, qty = 1) => {
     cart.push({ ...food, qty });
   }
   saveCart(cart);
+  return true;
 };
 
 export const updateQtyInCart = (id, delta) => {
