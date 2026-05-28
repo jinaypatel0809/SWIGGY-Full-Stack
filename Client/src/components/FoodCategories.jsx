@@ -1,323 +1,203 @@
-import { useParams, useNavigate } from "react-router-dom";
-import { useEffect, useState } from "react";
-import { addToCart } from "../utils/cart";
+import { useNavigate } from "react-router-dom";
 
-const categoryMeta = {
-  "north-indian": {
+const categories = [
+  {
+    id: 1,
     name: "North Indian",
+    slug: "north-indian",
+    emoji: "🍛",
     color: "from-orange-400 to-red-500",
     image: "https://eastindianrecipes.net/wp-content/uploads/2022/09/How-to-Make-North-Indian-Thali-Vegetarian-7.jpg",
   },
-  "south-indian": {
+  {
+    id: 2,
     name: "South Indian",
+    slug: "south-indian",
+    emoji: "🥘",
     color: "from-green-400 to-teal-500",
     image: "https://blog.bigbasket.com/wp-content/uploads/2023/04/South-Indian-main_584509564.jpeg",
   },
-  chinese: {
+  {
+    id: 3,
     name: "Chinese",
+    slug: "chinese",
+    emoji: "🍜",
     color: "from-red-400 to-rose-600",
     image: "https://images.unsplash.com/photo-1635685296916-95acaf58471f?w=600",
   },
-  pizza: {
+  {
+    id: 4,
     name: "Pizza",
+    slug: "pizza",
+    emoji: "🍕",
     color: "from-red-400 to-pink-500",
     image: "https://i.pinimg.com/736x/ab/e6/57/abe65721a6d06545c99230151aab0177.jpg",
   },
-  burger: {
+  {
+    id: 5,
     name: "Burger",
+    slug: "burger",
+    emoji: "🍔",
     color: "from-yellow-400 to-orange-500",
     image: "https://img.freepik.com/premium-photo/burger-food-photography_398492-6506.jpg",
   },
-  biryani: {
+  {
+    id: 6,
     name: "Biryani",
+    slug: "biryani",
+    emoji: "🍚",
     color: "from-amber-400 to-yellow-600",
     image: "https://img.freepik.com/premium-photo/hyderabadi-chicken-biryani-food-photos_410516-42775.jpg",
   },
-};
+  {
+    id: 7,
+    name: "Desserts",
+    slug: "desserts",
+    emoji: "🍰",
+    color: "from-pink-400 to-purple-500",
+    image: "https://img.freepik.com/premium-photo/dessert-ice-cream_948265-23145.jpg",
+  },
+  {
+    id: 8,
+    name: "Rolls",
+    slug: "rolls",
+    emoji: "🌯",
+    color: "from-lime-400 to-green-500",
+    image: "https://www.heanorfastfood.com/wp-content/uploads/2022/10/60f2ea67b471327a1d82959b_chicken-roll_1500-x-1200.jpg",
+  },
+  {
+    id: 9,
+    name: "Dosa",
+    slug: "dosa",
+    emoji: "🫓",
+    color: "from-yellow-300 to-amber-500",
+    image: "https://www.kannammacooks.com/wp-content/uploads/tomato-dosai-1-4.jpg",
+  },
+  {
+    id: 10,
+    name: "Pasta",
+    slug: "pasta",
+    emoji: "🍝",
+    color: "from-orange-300 to-red-400",
+    image: "https://www.aheadofthyme.com/wp-content/uploads/2023/02/creamy-tomato-pasta.jpg",
+  },
+  {
+    id: 11,
+    name: "Noodles",
+    slug: "noodles",
+    emoji: "🍜",
+    color: "from-yellow-400 to-orange-400",
+    image: "https://tse4.mm.bing.net/th/id/OIP.bAi4BAmtk6OyVLcGA1fu0wHaHa?pid=Api",
+  },
+  {
+    id: 12,
+    name: "Shake",
+    slug: "shake",
+    emoji: "🥤",
+    color: "from-blue-400 to-cyan-500",
+    image: "https://img.freepik.com/premium-photo/strawberry-shake-food-photography_943281-104017.jpg",
+  },
+  {
+    id: 13,
+    name: "Coffee",
+    slug: "coffee",
+    emoji: "☕",
+    color: "from-amber-700 to-yellow-600",
+    image: "https://static.vecteezy.com/system/resources/previews/025/282/026/large_2x/stock-of-mix-a-cup-coffee-latte-more-motive-top-view-foodgraphy-generative-ai-photo.jpg",
+  },
+  {
+    id: 14,
+    name: "Lassi",
+    slug: "lassi",
+    emoji: "🥛",
+    color: "from-yellow-200 to-amber-400",
+    image: "https://img.freepik.com/premium-photo/indian-special-traditional-restaurant-food-lassi-rabri-dahivada_926199-1902273.jpg",
+  },
+  {
+    id: 15,
+    name: "Ice Cream",
+    slug: "ice-cream",
+    emoji: "🍦",
+    color: "from-sky-300 to-blue-400",
+    image: "https://images3.alphacoders.com/128/1288017.jpg",
+  },
+  {
+    id: 16,
+    name: "Salad",
+    slug: "salad",
+    emoji: "🥗",
+    color: "from-green-400 to-emerald-500",
+    image: "https://i.pinimg.com/originals/d9/29/e3/d929e3aa5de97cc2e413006b84f82f8d.jpg",
+  },
+  {
+    id: 17,
+    name: "Paratha",
+    slug: "paratha",
+    emoji: "🫓",
+    color: "from-orange-300 to-yellow-400",
+    image: "https://static.india.com/wp-content/uploads/2025/02/FEATURE-IMAGE-2025-02-05T171733.721.jpg",
+  },
+  {
+    id: 18,
+    name: "Vadapav",
+    slug: "vadapav",
+    emoji: "🍔",
+    color: "from-orange-400 to-red-500",
+    image: "https://static.vecteezy.com/system/resources/previews/035/225/684/large_2x/indian-famous-street-food-vada-pav-is-a-vegetarian-fast-food-dish-from-maharashtra-photo.JPG",
+  },
+  {
+    id: 19,
+    name: "Cake",
+    slug: "cake",
+    emoji: "🎂",
+    color: "from-pink-300 to-rose-500",
+    image: "https://tastysoulkitchen.com/wp-content/uploads/2025/10/devil-s-food-cake.png",
+  },
+  {
+    id: 20,
+    name: "Khichdi",
+    slug: "khichdi",
+    emoji: "🍲",
+    color: "from-yellow-300 to-amber-500",
+    image: "https://www.funfoodfrolic.com/wp-content/uploads/2021/05/Dalia-Khichdi-Blog-Thumbnail.jpg",
+  },
+];
 
-export default function CategoryPage() {
-  const { categoryName } = useParams();
+export default function FoodCategories() {
   const navigate = useNavigate();
 
-  const [foods, setFoods] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [selectedFood, setSelectedFood] = useState(null);
-  const [qty, setQty] = useState(1);
-  const [addedToCart, setAddedToCart] = useState(false);
-  const [visibleCount, setVisibleCount] = useState(8);
-
-  const meta = categoryMeta[categoryName] || {
-    name:
-      categoryName
-        ?.replace(/-/g, " ")
-        .replace(/\b\w/g, (l) => l.toUpperCase()) || "Food",
-    color: "from-orange-400 to-red-500",
-    image: "https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?w=400",
-  };
-
-  // ================= FETCH API =================
-  // ✅ FIX: meta.name use karo (e.g. "North Indian"), categoryName nahi (e.g. "north-indian")
-
-  useEffect(() => {
-    const fetchFoods = async () => {
-      setLoading(true);
-      setVisibleCount(8);
-
-      try {
-        const res = await fetch(
-          `https://swiggy-full-stack.onrender.com/api/food/category/${encodeURIComponent(
-            meta.name  // ✅ FIXED: was categoryName (slug), now meta.name (DB value)
-          )}`
-        );
-
-        const data = await res.json();
-        console.log(data);
-        setFoods(data.foods || []);
-      } catch (error) {
-        console.log("Fetch Error:", error);
-        setFoods([]);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchFoods();
-  }, [categoryName]);
-
-  // ================= MODAL =================
-
-  const openModal = (food) => {
-    setSelectedFood(food);
-    setQty(1);
-    setAddedToCart(false);
-    document.body.style.overflow = "hidden";
-  };
-
-  const closeModal = () => {
-    setSelectedFood(null);
-    document.body.style.overflow = "auto";
-  };
-
-  // ================= ADD TO CART =================
-
-  const handleAddToCart = () => {
-    addToCart(selectedFood, qty);
-    setAddedToCart(true);
-    setTimeout(() => {
-      closeModal();
-    }, 1200);
-  };
-
   return (
-    <div className="min-h-screen bg-gray-50">
+    <section className="max-w-7xl mx-auto px-4 py-10">
+      <h2 className="text-2xl font-extrabold text-gray-900 mb-6">
+        What's on your mind?
+      </h2>
 
-      {/* HERO SECTION */}
-
-      <div className={`bg-gradient-to-r ${meta.color} py-12 px-4`}>
-        <div className="max-w-7xl mx-auto">
-
-          <button
-            onClick={() => navigate(-1)}
-            className="text-white mb-6 hover:opacity-80 transition flex items-center gap-1 text-sm font-semibold"
+      <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8 gap-4">
+        {categories.map((cat) => (
+          <div
+            key={cat.id}
+            onClick={() => navigate(`/category/${cat.slug}`)}
+            className="flex flex-col items-center cursor-pointer group"
           >
-            ← Back
-          </button>
-
-          <div className="flex items-center gap-6">
-
-            <div className="w-28 h-28 rounded-2xl overflow-hidden border-4 border-white/20 shadow-lg">
+            {/* Image Circle */}
+            <div className="w-20 h-20 rounded-full overflow-hidden border-2 border-gray-100 shadow-sm group-hover:shadow-md group-hover:-translate-y-1 transition-all duration-200">
               <img
-                src={meta.image}
-                alt={meta.name}
-                className="w-full h-full object-cover"
+                src={cat.image}
+                alt={cat.name}
+                className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-200"
+                onError={(e) => {
+                  e.target.style.display = "none";
+                  e.target.parentElement.innerHTML = `<div class="w-full h-full flex items-center justify-center text-3xl bg-orange-50">${cat.emoji}</div>`;
+                }}
               />
             </div>
-
-            <div>
-              <h1 className="text-4xl font-extrabold text-white">{meta.name}</h1>
-              <p className="text-white/80 mt-2 text-lg">
-                {loading
-                  ? "Loading..."
-                  : `${foods.length} item${foods.length !== 1 ? "s" : ""} available`}
-              </p>
-            </div>
-
+            {/* Name */}
+            <p className="mt-2 text-xs font-semibold text-gray-700 text-center leading-tight group-hover:text-orange-500 transition-colors">
+              {cat.name}
+            </p>
           </div>
-        </div>
+        ))}
       </div>
-
-      {/* FOOD GRID */}
-
-      <div className="max-w-7xl mx-auto px-4 py-10">
-
-        <h2 className="text-2xl font-bold text-gray-900 mb-8">{meta.name} Items</h2>
-
-        {/* LOADING */}
-        {loading && (
-          <div className="text-center py-20 text-gray-500">Loading Foods...</div>
-        )}
-
-        {/* FOODS */}
-        {!loading && foods.length > 0 && (
-          <>
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-6">
-              {foods.slice(0, visibleCount).map((food) => (
-                <div
-                  key={food._id}
-                  onClick={() => openModal(food)}
-                  className="bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 cursor-pointer"
-                >
-                  {/* IMAGE */}
-                  <div className="relative h-52 overflow-hidden bg-gray-100">
-                    {food.image ? (
-                      <img
-                        src={food.image}
-                        alt={food.name}
-                        className="w-full h-full object-cover hover:scale-105 transition-all duration-300"
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center text-5xl">🍽️</div>
-                    )}
-
-                    {/* Veg/Non-Veg indicator */}
-                    <div
-                      className={`absolute top-3 left-3 w-5 h-5 rounded-sm border-2 bg-white flex items-center justify-center ${
-                        food.isVeg ? "border-green-600" : "border-red-600"
-                      }`}
-                    >
-                      <span
-                        className={`w-2.5 h-2.5 rounded-full ${
-                          food.isVeg ? "bg-green-600" : "bg-red-600"
-                        }`}
-                      ></span>
-                    </div>
-                  </div>
-
-                  {/* DETAILS */}
-                  <div className="p-4">
-                    <h3 className="text-sm font-bold text-gray-900 truncate">{food.name}</h3>
-                    {food.description && (
-                      <p className="text-xs text-gray-500 mt-1 line-clamp-2">{food.description}</p>
-                    )}
-                    <div className="mt-4 flex items-center justify-between">
-                      <span className="text-orange-500 font-extrabold text-base">₹{food.price}</span>
-                      <span className="text-xs font-bold text-orange-500 border border-orange-400 px-3 py-1 rounded-xl">
-                        Add +
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            {/* SHOW MORE */}
-            {visibleCount < foods.length && (
-              <div className="flex justify-center mt-10">
-                <button
-                  onClick={() => setVisibleCount((v) => v + 8)}
-                  className="px-6 py-3 bg-orange-500 text-white rounded-xl font-bold hover:bg-orange-600"
-                >
-                  Show More
-                </button>
-              </div>
-            )}
-          </>
-        )}
-
-        {/* EMPTY */}
-        {!loading && foods.length === 0 && (
-          <div className="text-center py-20">
-            <div className="text-6xl mb-4">🍽️</div>
-            <h3 className="text-xl font-bold text-gray-700">{meta.name} items coming soon!</h3>
-            <p className="text-gray-400 mt-2 text-sm">Admin is adding items for this category.</p>
-            <button
-              onClick={() => navigate("/")}
-              className="mt-6 px-6 py-3 bg-orange-500 hover:bg-orange-600 text-white rounded-xl font-bold"
-            >
-              Back to Home
-            </button>
-          </div>
-        )}
-      </div>
-
-      {/* ================= MODAL ================= */}
-
-      {selectedFood && (
-        <>
-          {/* BACKDROP */}
-          <div className="fixed inset-0 bg-black/60 z-50" onClick={closeModal} />
-
-          {/* MODAL */}
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden">
-
-              {/* IMAGE */}
-              <div className="relative h-64 bg-gray-100">
-                {selectedFood.image ? (
-                  <img
-                    src={selectedFood.image}
-                    alt={selectedFood.name}
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center text-7xl bg-orange-50">🍽️</div>
-                )}
-                <button
-                  onClick={closeModal}
-                  className="absolute top-4 right-4 bg-white w-10 h-10 rounded-full shadow flex items-center justify-center"
-                >
-                  ✕
-                </button>
-              </div>
-
-              {/* CONTENT */}
-              <div className="p-6">
-                <div className="flex items-center justify-between mb-3">
-                  <h2 className="text-xl font-extrabold text-gray-900">{selectedFood.name}</h2>
-                  <span className="text-orange-500 text-xl font-extrabold">₹{selectedFood.price}</span>
-                </div>
-
-                {selectedFood.description ? (
-                  <p className="text-sm text-gray-500 mb-5">{selectedFood.description}</p>
-                ) : (
-                  <p className="text-sm text-gray-400 italic mb-5">No description available.</p>
-                )}
-
-                {/* QUANTITY */}
-                <div className="flex items-center justify-between mb-5 bg-gray-100 rounded-2xl p-4">
-                  <button
-                    onClick={() => setQty((q) => Math.max(1, q - 1))}
-                    className="w-10 h-10 rounded-full bg-white shadow font-bold text-lg"
-                  >
-                    -
-                  </button>
-                  <span className="text-xl font-bold">{qty}</span>
-                  <button
-                    onClick={() => setQty((q) => q + 1)}
-                    className="w-10 h-10 rounded-full bg-orange-500 text-white font-bold text-lg"
-                  >
-                    +
-                  </button>
-                </div>
-
-                {/* BUTTON */}
-                <button
-                  onClick={handleAddToCart}
-                  className={`w-full py-4 rounded-2xl font-bold transition-all ${
-                    addedToCart
-                      ? "bg-green-500 text-white"
-                      : "bg-orange-500 hover:bg-orange-600 text-white"
-                  }`}
-                >
-                  {addedToCart
-                    ? "Added To Cart! ✓"
-                    : `Add To Cart — ₹${selectedFood.price * qty}`}
-                </button>
-              </div>
-            </div>
-          </div>
-        </>
-      )}
-    </div>
+    </section>
   );
 }
