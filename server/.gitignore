@@ -1,3 +1,38 @@
-/node_modules
+# Dependencies
+node_modules/
+
+# Environment variables and credentials
 .env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Runtime uploads and generated files
+uploads/*
+!uploads/.gitkeep
+logs/*
+!logs/.gitkeep
+
+# Build, test, and cache output
+dist/
+build/
+coverage/
+.cache/
+
+# Logs
 *.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Render/local platform files
+.render/
+
+# Editor and operating-system files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+

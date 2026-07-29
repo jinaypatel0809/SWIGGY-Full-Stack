@@ -1,14 +1,10 @@
-const mongoose = require("mongoose");
+import mongoose from 'mongoose'
+import { env } from './env.js'
 
-const connectDB = async () => {
-  try {
-    const conn = await mongoose.connect(process.env.MONGODB_URI);
-
-    console.log(`✅ MongoDB Connected: ${conn.connection.host}`);
-  } catch (error) {
-    console.log("❌ MongoDB Error:", error.message);
-    process.exit(1);
-  }
-};
-
-module.exports = connectDB;
+export async function connectDatabase() {
+  await mongoose.connect(env.mongoUri, {
+    dbName: 'zomato_clone',
+    serverSelectionTimeoutMS: 10000,
+  })
+  console.log('MongoDB connected')
+}
