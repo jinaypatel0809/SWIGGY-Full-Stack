@@ -9,7 +9,11 @@ import addressRoutes from './routes/addressRoutes.js'
 import reviewRoutes from './routes/reviewRoutes.js'
 
 const app = express()
-const allowedOrigins = new Set([...env.clientUrls, 'http://localhost:5173'])
+const allowedOrigins = new Set([
+  ...env.clientUrls,
+  'http://localhost:5173',
+  'https://swiggy-full-stack.vercel.app',
+])
 
 app.disable('x-powered-by')
 app.use(cors({
