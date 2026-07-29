@@ -15,6 +15,7 @@
     "express": "^5.2.1",
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^9.8.0",
+    "razorpay": "^2.9.8",
     "twilio": "^6.0.2"
   }
 }

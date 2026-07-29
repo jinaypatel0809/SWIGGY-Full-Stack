@@ -1,8 +1,16 @@
+import crypto from 'node:crypto'
+import Razorpay from 'razorpay'
 import Order from '../models/Order.js'
+import { env } from '../config/env.js'
 import { sendPhoneOtp, verifyPhoneOtp } from '../services/otpService.js'
 import Address from '../models/Address.js'
 import Account from '../models/Account.js'
 import ContentItem from '../models/ContentItem.js'
+
+const razorpay = new Razorpay({
+  key_id: env.razorpayKeyId,
+  key_secret: env.razorpayKeySecret,
+})
 
 function normalizeItems(items = []) {
   return items.map((item) => ({
@@ -11,6 +19,13 @@ function normalizeItems(items = []) {
     price: Number(item.price),
     quantity: Number(item.quantity),
   }))
+}
+
+function calculateTotals(items) {
+  const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0)
+  const tax = Math.round(subtotal * 0.05)
+  const deliveryFee = subtotal >= 499 ? 0 : 40
+  return { subtotal, tax, deliveryFee, total: subtotal + tax + deliveryFee }
 }
 
 export async function sendCodOtp(req, res, next) {
@@ -36,10 +51,7 @@ export async function confirmCodOrder(req, res, next) {
       return res.status(400).json({ message: 'Invalid or expired OTP' })
     }
 
-    const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0)
-    const tax = Math.round(subtotal * 0.05)
-    const deliveryFee = subtotal >= 499 ? 0 : 40
-    const total = subtotal + tax + deliveryFee
+    const { subtotal, tax, deliveryFee, total } = calculateTotals(items)
     const order = await Order.create({
       user: req.account._id,
       items,
@@ -53,6 +65,104 @@ export async function confirmCodOrder(req, res, next) {
       paymentStatus: 'pending',
     })
     res.status(201).json({ message: 'COD order confirmed', order })
+  } catch (error) {
+    next(error)
+  }
+}
+
+export async function createOnlineOrder(req, res, next) {
+  let order
+  try {
+    const items = normalizeItems(req.body.items)
+    const location = req.body.location?.trim()
+    const address = await Address.findOne({ _id: req.body.addressId, user: req.account._id })
+    if (!items.length || !location || !address) {
+      return res.status(400).json({ message: 'Cart, delivery address and location are required' })
+    }
+
+    const invalidItem = items.some((item) =>
+      !item.itemId || !item.name || !Number.isFinite(item.price) || item.price < 0 ||
+      !Number.isInteger(item.quantity) || item.quantity < 1)
+    if (invalidItem) return res.status(400).json({ message: 'Cart contains an invalid item' })
+
+    const { subtotal, tax, deliveryFee, total } = calculateTotals(items)
+    order = await Order.create({
+      user: req.account._id,
+      items,
+      total,
+      subtotal,
+      tax,
+      deliveryFee,
+      address: address.toObject(),
+      location,
+      paymentMethod: 'online',
+      paymentStatus: 'pending',
+      status: 'payment-pending',
+    })
+
+    const razorpayOrder = await razorpay.orders.create({
+      amount: Math.round(total * 100),
+      currency: 'INR',
+      receipt: `order_${order._id}`,
+      notes: { internalOrderId: String(order._id) },
+    })
+    order.razorpayOrderId = razorpayOrder.id
+    await order.save()
+
+    res.status(201).json({
+      keyId: env.razorpayKeyId,
+      amount: razorpayOrder.amount,
+      currency: razorpayOrder.currency,
+      razorpayOrderId: razorpayOrder.id,
+      internalOrderId: order._id,
+      customer: {
+        name: req.account.name,
+        email: req.account.email,
+        phone: req.account.phone,
+      },
+    })
+  } catch (error) {
+    if (order && !order.razorpayOrderId) await Order.findByIdAndDelete(order._id).catch(() => {})
+    next(error)
+  }
+}
+
+export async function verifyOnlinePayment(req, res, next) {
+  try {
+    const {
+      internalOrderId,
+      razorpay_order_id: razorpayOrderId,
+      razorpay_payment_id: razorpayPaymentId,
+      razorpay_signature: razorpaySignature,
+    } = req.body
+    if (!internalOrderId || !razorpayOrderId || !razorpayPaymentId || !razorpaySignature) {
+      return res.status(400).json({ message: 'Incomplete Razorpay payment response' })
+    }
+
+    const order = await Order.findOne({
+      _id: internalOrderId,
+      user: req.account._id,
+      paymentMethod: 'online',
+      razorpayOrderId,
+    })
+    if (!order) return res.status(404).json({ message: 'Payment order not found' })
+    if (order.paymentStatus === 'paid') return res.json({ message: 'Payment already verified', order })
+
+    const expectedSignature = crypto
+      .createHmac('sha256', env.razorpayKeySecret)
+      .update(`${order.razorpayOrderId}|${razorpayPaymentId}`)
+      .digest('hex')
+    const received = Buffer.from(razorpaySignature, 'utf8')
+    const expected = Buffer.from(expectedSignature, 'utf8')
+    if (received.length !== expected.length || !crypto.timingSafeEqual(received, expected)) {
+      return res.status(400).json({ message: 'Payment verification failed' })
+    }
+
+    order.razorpayPaymentId = razorpayPaymentId
+    order.paymentStatus = 'paid'
+    order.status = 'confirmed'
+    await order.save()
+    res.json({ message: 'Online payment verified', order })
   } catch (error) {
     next(error)
   }

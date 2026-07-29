@@ -9,9 +9,15 @@ import addressRoutes from './routes/addressRoutes.js'
 import reviewRoutes from './routes/reviewRoutes.js'
 
 const app = express()
+const allowedOrigins = new Set([...env.clientUrls, 'http://localhost:5173'])
 
 app.disable('x-powered-by')
-app.use(cors({ origin: env.clientUrl }))
+app.use(cors({
+  origin(origin, callback) {
+    if (!origin || allowedOrigins.has(origin.replace(/\/$/, ''))) return callback(null, true)
+    return callback(new Error('Origin is not allowed by CORS'))
+  },
+}))
 app.use(express.json({ limit: '20kb' }))
 
 app.get('/api/health', (req, res) => {

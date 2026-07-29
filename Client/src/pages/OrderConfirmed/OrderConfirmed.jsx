@@ -17,7 +17,7 @@ function OrderConfirmed() {
         <p className="mt-3 text-zinc-500">Your order has been received and the restaurant will start preparing it.</p>
         <div className="mt-6 rounded-xl bg-zinc-50 p-4 text-left text-sm dark:bg-zinc-800">
           <p><span className="text-zinc-500">Order ID:</span> {orderId}</p>
-          {order && <><p className="mt-2"><span className="text-zinc-500">Payment:</span> Cash on Delivery</p><p className="mt-2"><span className="text-zinc-500">Total:</span> ₹{order.total}</p></>}
+          {order && <><p className="mt-2"><span className="text-zinc-500">Payment:</span> {order.paymentMethod === 'online' ? 'Online Payment' : 'Cash on Delivery'}</p><p className="mt-2"><span className="text-zinc-500">Total:</span> ₹{order.total}</p></>}
         </div>
         <Link to="/" className="mt-7 inline-flex items-center gap-2 rounded-lg bg-[#e23744] px-6 py-3 font-semibold text-white"><ShoppingBag className="size-4" /> Continue shopping</Link>
       </section>
