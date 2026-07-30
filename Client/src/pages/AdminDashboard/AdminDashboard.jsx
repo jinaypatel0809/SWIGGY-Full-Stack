@@ -257,12 +257,6 @@ function AdminDashboard() {
                     <input required value={form.restaurantName} onChange={(event) => setForm({ ...form, restaurantName: event.target.value })} className="admin-input" placeholder="e.g. La Pinoz Pizza" />
                   </label>
                 )}
-                {['food', 'brand'].includes(activeMenu.section) && (
-                  <label className="block md:col-span-2">
-                    <span className="form-label">Restaurant MongoDB ID</span>
-                    <input value={form.restaurantId} onChange={(event) => setForm({ ...form, restaurantId: event.target.value })} className="admin-input" placeholder="Paste restaurant item ID to show this item on its menu" />
-                  </label>
-                )}
                 {['restaurant', 'offer'].includes(activeMenu.section) && (
                   <label className="block md:col-span-2">
                     <span className="form-label">{activeMenu.section === 'restaurant' ? 'Restaurant' : 'Offer'} location *</span>
